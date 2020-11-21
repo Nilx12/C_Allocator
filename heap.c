@@ -475,17 +475,18 @@ void* heap_realloc_aligned(void* memblock, size_t size){
         heap_free(memblock);
         return NULL;
     }
+    if(((long)memblock%PAGE_SIZE) != 0){
+        void *ptr = heap_malloc_aligned(size);
+        int size_to_copy = (size > block->size)?block->size:size;
+        memcpy(ptr,memblock,size_to_copy);
+        heap_free(memblock);
+        return ptr;
+    }
     if(size <= block ->size){
         block->size = size;
         block->bias = size;
         memset((char*)memblock + size,'#',FENCE_SIZE);
         return  memblock;
-    }
-    if(((long)memblock%PAGE_SIZE) != 0){
-        void *ptr = heap_malloc_aligned(size);
-        memcpy(ptr,memblock,block->size);
-        heap_free(memblock);
-        return ptr;
     }
     size_t unused_bytes = block->size;
     if(block->next != NULL){
