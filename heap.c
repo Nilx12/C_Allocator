@@ -467,6 +467,7 @@ void* heap_realloc_aligned(void* memblock, size_t size){
     if(heap_validate() != 0 || (get_pointer_type(memblock) != pointer_valid && get_pointer_type(memblock) != pointer_null )){
         return NULL;
     }
+    struct memory_block_t *block =(void*)( (char*)memblock - BLOCK_SIZE - FENCE_SIZE);
     if(memblock == NULL){
         return heap_malloc_aligned(size);
     }
@@ -474,14 +475,18 @@ void* heap_realloc_aligned(void* memblock, size_t size){
         heap_free(memblock);
         return NULL;
     }
-    struct memory_block_t *block =(void*)( (char*)memblock - BLOCK_SIZE - FENCE_SIZE);
     if(size <= block ->size){
         block->size = size;
         block->bias = size;
         memset((char*)memblock + size,'#',FENCE_SIZE);
         return  memblock;
     }
-
+    if(((long)memblock%PAGE_SIZE) != 0){
+        void *ptr = heap_malloc_aligned(size);
+        memcpy(ptr,memblock,block->size);
+        heap_free(memblock);
+        return ptr;
+    }
     size_t unused_bytes = block->size;
     if(block->next != NULL){
         unused_bytes = ((long)block->next - FENCE_SIZE) - ((long)block + BLOCK_SIZE + FENCE_SIZE);
